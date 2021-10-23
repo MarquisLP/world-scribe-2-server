@@ -3,3 +3,4 @@ uploads/
 *.sqlite
 *.env
 .vscode
+TESTWORLDS*

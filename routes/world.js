@@ -62,7 +62,7 @@ module.exports = function(app) {
         }
 
         if (newWorldName[newWorldName.length - 1] === ' ') {
-            return res.status(400).end('World name cannnot end on a space');
+            return res.status(400).end('World name cannot end on a space');
         }
 
         if (reservedFileSystemCharacters.some((character) => newWorldName.includes(character))) {
