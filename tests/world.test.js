@@ -258,4 +258,131 @@ describe('worlds', () => {
             ]);
         });
     });
+
+    describe('GET /api/worlds/', () => {
+        const EMPTY_WORLDS_FOLDER_PATH = path.join(__dirname, 'TESTWORLDS_world_empty');
+        const GET_WORLDS_FOLDER_PATH = path.join(__dirname, 'TESTWORLDS_world_get');
+
+        let server;
+
+        beforeEach(() => {
+            if (fs.existsSync(EMPTY_WORLDS_FOLDER_PATH)) {
+                fs.rmSync(EMPTY_WORLDS_FOLDER_PATH, { recursive: true });
+            }
+            fs.mkdirSync(EMPTY_WORLDS_FOLDER_PATH, { recursive: true });
+
+            if (fs.existsSync(GET_WORLDS_FOLDER_PATH)) {
+                fs.rmSync(GET_WORLDS_FOLDER_PATH, { recursive: true });
+            }
+            fs.mkdirSync(GET_WORLDS_FOLDER_PATH, { recursive: true });
+
+            // Create World folders spanning the alphabet from A to T. (T instead of Z so that we have a nice round number of 20.)
+            for (let i = 1; i < 21; i++) {
+                const worldLetter = (i + 9).toString(36).toUpperCase();
+                fs.mkdirSync(path.join(GET_WORLDS_FOLDER_PATH, `World ${worldLetter}`), { recursive: true });
+            }
+
+           server = require('../server')();
+        });
+
+        it('returns an empty list when there are no worlds in the Worlds folder', async () => {
+            const response = await supertest(server)
+                .get('/api/worlds/')
+                .query({
+                    path: EMPTY_WORLDS_FOLDER_PATH,
+                })
+                .expect(200);
+            expect(response.body.hasMore).to.equal(false);
+            expect(response.body.worlds).to.be.empty();
+        });
+
+        it('returns the first 10 worlds alphabetically when no pagination parameters are given', async () => {
+            const response = await supertest(server)
+                .get('/api/worlds/')
+                .query({
+                    path: GET_WORLDS_FOLDER_PATH,
+                })
+                .expect(200);
+            expect(response.body.hasMore).to.equal(true);
+            expect(response.body.worlds).to.have.length(10);
+            expect(response.body.worlds[0]).to.equal('World A');
+            expect(response.body.worlds[1]).to.equal('World B');
+            expect(response.body.worlds[2]).to.equal('World C');
+            expect(response.body.worlds[3]).to.equal('World D');
+            expect(response.body.worlds[4]).to.equal('World E');
+            expect(response.body.worlds[5]).to.equal('World F');
+            expect(response.body.worlds[6]).to.equal('World G');
+            expect(response.body.worlds[7]).to.equal('World H');
+            expect(response.body.worlds[8]).to.equal('World I');
+            expect(response.body.worlds[9]).to.equal('World J');
+        });
+
+        it('returns an alphabetically-sorted list of all existing worlds when their amount is less than the page size', async () => {
+            const response = await supertest(server)
+                .get('/api/worlds/')
+                .query({
+                    path: GET_WORLDS_FOLDER_PATH,
+                    size: 50,
+                })
+                .expect(200);
+            expect(response.body.hasMore).to.equal(false);
+            expect(response.body.worlds).to.have.length(20);
+            expect(response.body.worlds[0]).to.equal('World A');
+            expect(response.body.worlds[1]).to.equal('World B');
+            expect(response.body.worlds[2]).to.equal('World C');
+            expect(response.body.worlds[3]).to.equal('World D');
+            expect(response.body.worlds[4]).to.equal('World E');
+            expect(response.body.worlds[5]).to.equal('World F');
+            expect(response.body.worlds[6]).to.equal('World G');
+            expect(response.body.worlds[7]).to.equal('World H');
+            expect(response.body.worlds[8]).to.equal('World I');
+            expect(response.body.worlds[9]).to.equal('World J');
+            expect(response.body.worlds[10]).to.equal('World K');
+            expect(response.body.worlds[11]).to.equal('World L');
+            expect(response.body.worlds[12]).to.equal('World M');
+            expect(response.body.worlds[13]).to.equal('World N');
+            expect(response.body.worlds[14]).to.equal('World O');
+            expect(response.body.worlds[15]).to.equal('World P');
+            expect(response.body.worlds[16]).to.equal('World Q');
+            expect(response.body.worlds[17]).to.equal('World R');
+            expect(response.body.worlds[18]).to.equal('World S');
+            expect(response.body.worlds[19]).to.equal('World T');
+        });
+
+        it('returns the appropriate list of worlds according to the given page number and page size', async () => {
+            const response = await supertest(server)
+                .get('/api/worlds/')
+                .query({
+                    path: GET_WORLDS_FOLDER_PATH,
+                    page: 2,
+                    size: 6,
+                })
+                .expect(200);
+            expect(response.body.hasMore).to.equal(true);
+            expect(response.body.worlds).to.have.length(6);
+            expect(response.body.worlds[0]).to.equal('World G');
+            expect(response.body.worlds[1]).to.equal('World H');
+            expect(response.body.worlds[2]).to.equal('World I');
+            expect(response.body.worlds[3]).to.equal('World J');
+            expect(response.body.worlds[4]).to.equal('World K');
+            expect(response.body.worlds[5]).to.equal('World L');
+        });
+
+        it('returns a response with "hasMore: false" when there are no further pages of worlds', async () => {
+            const response = await supertest(server)
+                .get('/api/worlds/')
+                .query({
+                    path: GET_WORLDS_FOLDER_PATH,
+                    page: 5,
+                    size: 4,
+                })
+                .expect(200);
+            expect(response.body.hasMore).to.equal(false);
+            expect(response.body.worlds).to.have.length(4);
+            expect(response.body.worlds[0]).to.equal('World Q');
+            expect(response.body.worlds[1]).to.equal('World R');
+            expect(response.body.worlds[2]).to.equal('World S');
+            expect(response.body.worlds[3]).to.equal('World T');
+        });
+    });
 });
