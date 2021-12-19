@@ -8,6 +8,7 @@ module.exports = function(app) {
 
         if (!worldFolderPath || (worldFolderPath === '')) {
             app.locals.upload = null;
+            app.locals.currentWorldFolderPath = null;
 
             if (app.locals.repository) {
                 app.locals.repository.disconnectFromDatabase()
