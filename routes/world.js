@@ -108,7 +108,7 @@ module.exports = function(app) {
     app.get('/api/worlds/', function (req, res, next) {
         const worldsFolderPath = decodeURI(req.query.path);
         let offset = (parseInt(req.query.page) - 1) * parseInt(req.query.size);
-        let limit = parseInt(req.query.size) + 1;
+        let limit = parseInt(req.query.size);
         if (isNaN(offset)) {offset = 0}
         if (isNaN(limit)) {limit = 10}
 
@@ -117,7 +117,7 @@ module.exports = function(app) {
         });
         const worldsToReturn = worldFolders.slice(offset, offset + limit);
 
-        const hasMore = offset + limit < worldFolders.length - 1;
+        const hasMore = offset + limit + 1 < worldFolders.length - 1;
 
         return res.status(200).json({
             hasMore,
