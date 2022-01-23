@@ -385,4 +385,46 @@ describe('worlds', () => {
             expect(response.body.worlds[3]).to.equal('World T');
         });
     });
+
+    describe('GET /api/worlds/current/name', () => {
+        beforeEach(async () => {
+            fs.rmdirSync(EXISTING_WORLD_PATH, { recursive: true });
+            fs.mkdirSync(EXISTING_WORLD_PATH, { recursive: true });
+        });
+
+        it('returns 400 when server is not connected to a World', async () => {
+            const server = require('../server')();
+
+            const response = await supertest(server)
+                .get('/api/worlds/current/name')
+                .expect(400);
+            expect(response.body.message).to.equal('Server is not connected to a World. Please configure the World connection using the POST /api/worldAccesses endpoint.');
+        });
+
+        it('returns 200 and World name when server is connected to a World', async () => {
+            const server = require('../server')();
+
+            const repository = await require('../database/repository')({
+                worldFolderPath: EXISTING_WORLD_PATH,
+                skipMigrations: true,
+            });
+            await repository.Category.insertDefaultCategories();
+            repository.setDatabaseVersionToLatest();
+            fs.mkdirSync(path.join(EXISTING_WORLD_PATH, 'uploads'));
+
+            server.locals.repository = repository;
+            server.locals.currentWorldFolderPath = EXISTING_WORLD_PATH;
+            server.locals.upload = multer({
+                dest: path.join(EXISTING_WORLD_PATH, 'uploads'),
+                limits: {
+                    fileSize: 2 * 1000 * 1000,
+                },
+            });
+
+            const response = await supertest(server)
+                .get('/api/worlds/current/name')
+                .expect(200);
+            expect(response.body.name).to.equal(EXISTING_WORLD_NAME);
+        });
+    });
 });
