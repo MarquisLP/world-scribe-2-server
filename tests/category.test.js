@@ -67,4 +67,59 @@ describe('categories', () => {
             expect(numOfExistingCategoriesInDatabase[0][0]['COUNT(*)']).to.equal(1);
         });
     });
+
+    describe('PUT /api/categories/:categoryId/image', () => {
+        it('succeeds and saves image to World\'s uploads folder', async () => {
+            await sequelize.query(`
+                INSERT INTO
+                    categories(name, description, image, icon, createdAt, updatedAt)
+                VALUES
+                    ('Category - No Initial Image', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00')
+            `);
+
+            const response = await supertest(server)
+                .put('/api/categories/1/image')
+                .attach('picture', path.join(__dirname, 'test_image.jpg'))
+                .expect(200);
+
+            expect(response.text).to.equal('image has been uploaded for category: 1')
+
+            const imageQueryResult = await sequelize.query('SELECT image FROM categories WHERE id=1');
+            expect(imageQueryResult).not.to.be(null);
+            const imageData = JSON.parse(imageQueryResult[0][0].image);
+            const uploadedImageFilename = imageData.filename;
+
+            const uploadedImagePath = path.join(TEST_WORLD_PATH, 'uploads', uploadedImageFilename);
+            expect(fs.existsSync(uploadedImagePath)).to.be(true);
+        });
+
+        it('succeeds, deletes existing image, and saves image to World\'s uploads folder', async () => {
+            const existingImagePath = path.join(TEST_WORLD_PATH, 'uploads', 'existingimage');
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), existingImagePath);
+
+            await sequelize.query(`
+                INSERT INTO
+                    categories(name, description, image, icon, createdAt, updatedAt)
+                VALUES
+                    ('Category - No Initial Image', null, '{"filename": "existingimage"}', null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00')
+            `);
+
+            const response = await supertest(server)
+                .put('/api/categories/1/image')
+                .attach('picture', path.join(__dirname, 'test_image.jpg'))
+                .expect(200);
+
+            expect(response.text).to.equal('image has been uploaded for category: 1')
+
+            const imageQueryResult = await sequelize.query('SELECT image FROM categories WHERE id=1');
+            expect(imageQueryResult).not.to.be(null);
+            const imageData = JSON.parse(imageQueryResult[0][0].image);
+            const uploadedImageFilename = imageData.filename;
+            expect(uploadedImageFilename).not.to.equal('existingimage');
+
+            const uploadedImagePath = path.join(TEST_WORLD_PATH, 'uploads', uploadedImageFilename);
+            expect(fs.existsSync(uploadedImagePath)).to.be(true);
+            expect(fs.existsSync(existingImagePath)).to.be(false);
+        });
+    })
 });
