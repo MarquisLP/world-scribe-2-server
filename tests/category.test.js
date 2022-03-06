@@ -122,4 +122,123 @@ describe('categories', () => {
             expect(fs.existsSync(existingImagePath)).to.be(false);
         });
     })
+
+    describe('GET /api/categories', () => {
+        describe('with no Categories', () => {
+            it('returns an empty list when there are no Categories', async () => {
+                const response = await supertest(server)
+                    .get('/api/categories?page=1&size=5')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(false);
+                expect(response.body.categories).to.be.an(Array);
+                expect(response.body.categories).to.have.length(0);
+            });
+        });
+
+        describe('with 10 Categories', () => {
+            beforeEach(async () => {
+                await sequelize.query(`
+                    INSERT INTO
+                        categories(name, description, image, icon, createdAt, updatedAt)
+                    VALUES
+                        ('Category A', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category B', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category C', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category F', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category E', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category J', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category G', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category H', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category I', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Category D', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+                `);
+            });
+
+            it('returns first Category when page=1 and size=1', async () => {
+                const response = await supertest(server)
+                    .get('/api/categories?page=1&size=1')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(true);
+                expect(response.body.categories).to.be.an(Array);
+                expect(response.body.categories).to.have.length(1);
+                expect(response.body.categories[0]).to.eql({
+                    id: 1,
+                    name: 'Category A',
+                    description: null,
+                    image: null,
+                    icon: null,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+            });
+
+            it('returns Categories 4-6 sorted by ascending name when page=2 and size=3', async () => {
+                const response = await supertest(server)
+                    .get('/api/categories?page=2&size=3')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(true);
+                expect(response.body.categories).to.be.an(Array);
+                expect(response.body.categories).to.have.length(3);
+                expect(response.body.categories[0]).to.eql({
+                    id: 10,
+                    name: 'Category D',
+                    description: null,
+                    image: null,
+                    icon: null,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+                expect(response.body.categories[1]).to.eql({
+                    id: 5,
+                    name: 'Category E',
+                    description: null,
+                    image: null,
+                    icon: null,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+                expect(response.body.categories[2]).to.eql({
+                    id: 4,
+                    name: 'Category F',
+                    description: null,
+                    image: null,
+                    icon: null,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+            });
+
+            it('returns less Categories than specified by size, when the last page is requested and it has less than size items', async () => {
+                const response = await supertest(server)
+                    .get('/api/categories?page=4&size=3')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(false);
+                expect(response.body.categories).to.be.an(Array);
+                expect(response.body.categories).to.have.length(1);
+                expect(response.body.categories[0]).to.eql({
+                    id: 6,
+                    name: 'Category J',
+                    description: null,
+                    image: null,
+                    icon: null,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+            })
+
+            it('returns an empty list when page and size go beyond the range of Categories', async () => {
+                const response = await supertest(server)
+                    .get('/api/categories?page=3&size=5')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(false);
+                expect(response.body.categories).to.be.an(Array);
+                expect(response.body.categories).to.have.length(0);
+            })
+        });
+    });
 });
