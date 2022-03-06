@@ -301,4 +301,38 @@ describe('categories', () => {
             expect(response.text).to.be('Image does not exist for Category \'1\'');
         });
     });
+
+    describe('PATCH /api/categories/:categoryId/description', () => {
+        it('updates Category description in the database', async () => {
+            await sequelize.query(`
+                INSERT INTO
+                    categories(name, description, image, icon, createdAt, updatedAt)
+                VALUES
+                    ('Category with Description', 'Old description', null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00')
+            `);
+
+            const response = await supertest(server)
+                .patch('/api/categories/1/description')
+                .send({
+                    description: 'New description',
+                })
+                .expect(200);
+
+            delete response.body.updatedAt; // Can't verify this because it will differ on every test run.
+
+            expect(response.body).to.eql({
+                id: 1,
+                name: 'Category with Description',
+                description: 'New description',
+                image: null,
+                icon: null,
+                createdAt: '2000-01-01T00:00:00.000Z',
+            });
+
+            const descriptionQueryResult = await sequelize.query('SELECT description FROM categories WHERE id=1');
+            expect(descriptionQueryResult).not.to.be(null);
+            const actualDescription = descriptionQueryResult[0][0].description;
+            expect(actualDescription).to.be('New description');
+        });
+    });
 });
