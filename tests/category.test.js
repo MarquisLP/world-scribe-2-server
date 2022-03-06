@@ -264,4 +264,41 @@ describe('categories', () => {
             });
         });
     });
+
+    describe('GET /api/categories/:categoryId/image', () => {
+        it('returns 200 with image Content-Type when Category has an image', async () => {
+            const existingImagePath = path.join(TEST_WORLD_PATH, 'uploads', 'existingimage');
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), existingImagePath);
+
+            await sequelize.query(`
+                INSERT INTO
+                    categories(name, description, image, icon, createdAt, updatedAt)
+                VALUES
+                    ('Category with Image', null, '{"filename": "existingimage", "mimetype": "image/jpeg"}', null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00')
+            `);
+
+            const response = await supertest(server)
+                .get('/api/categories/1/image')
+                .expect(200);
+
+            console.log(response.headers);
+
+            expect(response.headers['content-type']).to.be('image/jpeg');
+        });
+
+        it('returns 404 when Category does not have an image', async () => {
+            await sequelize.query(`
+                INSERT INTO
+                    categories(name, description, image, icon, createdAt, updatedAt)
+                VALUES
+                    ('Category with No Image', null, null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00')
+            `);
+
+            const response = await supertest(server)
+                .get('/api/categories/1/image')
+                .expect(404);
+
+            expect(response.text).to.be('Image does not exist for Category \'1\'');
+        });
+    });
 });
