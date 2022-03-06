@@ -335,4 +335,38 @@ describe('categories', () => {
             expect(actualDescription).to.be('New description');
         });
     });
+
+    describe('PATCH /api/categories/:categoryId/name', () => {
+        it('updates Category name in the database', async () => {
+            await sequelize.query(`
+                INSERT INTO
+                    categories(name, description, image, icon, createdAt, updatedAt)
+                VALUES
+                    ('Old Category Name', 'Description', null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00')
+            `);
+
+            const response = await supertest(server)
+                .patch('/api/categories/1/name')
+                .send({
+                    name: 'New Category Name',
+                })
+                .expect(200);
+
+            delete response.body.updatedAt; // Can't verify this because it will differ on every test run.
+
+            expect(response.body).to.eql({
+                id: 1,
+                name: 'New Category Name',
+                description: 'Description',
+                image: null,
+                icon: null,
+                createdAt: '2000-01-01T00:00:00.000Z',
+            });
+
+            const nameQueryResult = await sequelize.query('SELECT name FROM categories WHERE id=1');
+            expect(nameQueryResult).not.to.be(null);
+            const actualName = nameQueryResult[0][0].name;
+            expect(actualName).to.be('New Category Name');
+        });
+    });
 });
