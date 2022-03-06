@@ -241,4 +241,27 @@ describe('categories', () => {
             })
         });
     });
+
+    describe('GET /api/categories/:categoryId/metadata', () => {
+        it('returns Category metadata for an existing Category', async () => {
+            await sequelize.query(`
+                INSERT INTO
+                    categories(name, description, image, icon, createdAt, updatedAt)
+                VALUES
+                    ('Category with Metadata', 'A description', null, null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            const response = await supertest(server)
+                .get('/api/categories/1/metadata')
+                .expect(200);
+
+            expect(response.body).to.eql({
+                id: 1,
+                name: 'Category with Metadata',
+                description: 'A description',
+                createdAt: '2000-01-01 00:00:00.000 +00:00',
+                updatedAt: '2000-01-01 00:00:00.000 +00:00',
+            });
+        });
+    });
 });
