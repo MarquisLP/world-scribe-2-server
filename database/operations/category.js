@@ -211,7 +211,7 @@ module.exports = (Sequelize, sequelize, Models) => {
         }
         if (name && !(name === category.name)) {
             category.name = name;
-            category.save();
+            await category.save();
         }
         return category;
     }
