@@ -369,4 +369,81 @@ describe('categories', () => {
             expect(actualName).to.be('New Category Name');
         });
     });
+
+    describe('DELETE /api/categories/:categoryId', () => {
+        it('deletes images for all Articles in the Category, then the Category image, followed by Category database entry', async () => {
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article1'));
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article2'));
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article3'));
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article4'));
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article5'));
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'category1'));
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'category2'));
+
+            await sequelize.query(`
+                INSERT INTO
+                    categories(name, description, image, icon, createdAt, updatedAt)
+                VALUES
+                    ('Category to Delete', 'Description 1', '{"filename": "category1", "mimetype": "image/jpeg"}', null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Other Category - should not be deleted', 'Description 2', '{"filename": "category2", "mimetype": "image/jpeg"}', null, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            await sequelize.query(`
+                INSERT INTO
+                    articles(name, image, categoryId, createdAt, updatedAt)
+                VALUES
+                    ('Article 1', '{"filename": "article1", "mimetype": "image/jpeg"}', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Article 2', '{"filename": "article2", "mimetype": "image/jpeg"}', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Article 3', '{"filename": "article3", "mimetype": "image/jpeg"}', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Article 4', '{"filename": "article4", "mimetype": "image/jpeg"}', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Article 5', '{"filename": "article5", "mimetype": "image/jpeg"}', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            const response = await supertest(server)
+                .delete('/api/categories/1');
+
+            delete response.body.updatedAt; // Can't verify this because it will differ on every test run.
+
+            expect(response.body).to.eql({
+                id: 1,
+                name: 'Category to Delete',
+                description: 'Description 1',
+                image: '{"filename": "category1", "mimetype": "image/jpeg"}',
+                icon: null,
+                createdAt: '2000-01-01 00:00:00.000 +00:00',
+            });
+
+            const categoriesQueryResult = await sequelize.query(`
+                SELECT
+                    id, name
+                FROM
+                    categories
+            `);
+            expect(categoriesQueryResult).not.to.be(null);
+            expect(categoriesQueryResult[0]).have.length(1);
+            expect(categoriesQueryResult[0][0].id).to.be(2);
+            expect(categoriesQueryResult[0][0].name).to.be('Other Category - should not be deleted');
+
+            const articlesQueryResult = await sequelize.query(`
+                SELECT
+                    id, name
+                FROM
+                    articles
+            `);
+            expect(articlesQueryResult).not.to.be(null);
+            expect(articlesQueryResult[0]).have.length(2);
+            expect(articlesQueryResult[0][0].id).to.be(4);
+            expect(articlesQueryResult[0][0].name).to.be('Article 4');
+            expect(articlesQueryResult[0][1].id).to.be(5);
+            expect(articlesQueryResult[0][1].name).to.be('Article 5');
+
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article1'))).to.be(false);
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article2'))).to.be(false);
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article3'))).to.be(false);
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article4'))).to.be(true);
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article5'))).to.be(true);
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'category1'))).to.be(false);
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'category2'))).to.be(true);
+        });
+    });
 });
