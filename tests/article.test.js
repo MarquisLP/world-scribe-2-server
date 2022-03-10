@@ -247,4 +247,28 @@ describe('articles', () => {
             })
         });
     });
+
+    describe('GET /api/articles/:articleId/metadata', () => {
+        it('returns Article metadata for an existing Article', async () => {
+            await sequelize.query(`
+                INSERT INTO
+                    articles(name, image, categoryId, createdAt, updatedAt)
+                VALUES
+                    ('Article with Metadata', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            const response = await supertest(server)
+                .get('/api/articles/1/metadata')
+                .expect(200);
+
+            expect(response.body).to.eql({
+                id: 1,
+                name: 'Article with Metadata',
+                categoryId: 1,
+                categoryName: 'Default Category',
+                createdAt: '2000-01-01T00:00:00.000Z',
+                updatedAt: '2000-01-01T00:00:00.000Z',
+            });
+        });
+    });
 });
