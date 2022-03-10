@@ -448,4 +448,33 @@ describe('articles', () => {
             })
         });
     });
+
+    describe('PATCH /api/articles/:articleId/name', () => {
+        it('updates Article name in the database', async () => {
+            await sequelize.query(`
+                INSERT INTO
+                    articles(name, image, categoryId, createdAt, updatedAt)
+                VALUES
+                    ('Old Article Name', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            const response = await supertest(server)
+                .patch('/api/articles/1/name')
+                .send({
+                    name: 'New Article Name',
+                })
+                .expect(200);
+
+            expect(response.body.name).to.equal('New Article Name');
+            expect(response.body.image).to.be(null);
+            expect(response.body.categoryId).to.equal(1);
+            expect(response.body.createdAt).to.equal('2000-01-01T00:00:00.000Z');
+            expect(response.body.updatedAt).to.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*)?)((-(\d{2}):(\d{2})|Z)?)$/);
+
+            const nameQueryResult = await sequelize.query('SELECT name FROM articles WHERE id=1');
+            expect(nameQueryResult).not.to.be(null);
+            const actualName = nameQueryResult[0][0].name;
+            expect(actualName).to.be('New Article Name');
+        });
+    });
 });
