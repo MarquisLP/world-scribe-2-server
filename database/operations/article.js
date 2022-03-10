@@ -92,7 +92,7 @@ module.exports = (Sequelize, sequelize, Models) => {
         }
         if (name && !(name === article.name)) {
             article.name = name;
-            article.save();
+            await article.save();
         }
         return article;
     }
