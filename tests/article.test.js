@@ -271,4 +271,41 @@ describe('articles', () => {
             });
         });
     });
+
+    describe('GET /api/articles/:articleId/image', () => {
+        it('returns 200 with image Content-Type when Article has an image', async () => {
+            const existingImagePath = path.join(TEST_WORLD_PATH, 'uploads', 'existingimage');
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), existingImagePath);
+
+            await sequelize.query(`
+                INSERT INTO
+                    articles(name, image, categoryId, createdAt, updatedAt)
+                VALUES
+                    ('Article with Image', '{"filename": "existingimage", "mimetype": "image/jpeg"}', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00')
+            `);
+
+            const response = await supertest(server)
+                .get('/api/articles/1/image')
+                .expect(200);
+
+            console.log(response.headers);
+
+            expect(response.headers['content-type']).to.be('image/jpeg');
+        });
+
+        it('returns 404 when Article does not have an image', async () => {
+            await sequelize.query(`
+                INSERT INTO
+                    articles(name, image, categoryId, createdAt, updatedAt)
+                VALUES
+                    ('Article with No Image', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00')
+            `);
+
+            const response = await supertest(server)
+                .get('/api/articles/1/image')
+                .expect(404);
+
+            expect(response.text).to.be('Image does not exist for Article \'1\'');
+        });
+    });
 });
