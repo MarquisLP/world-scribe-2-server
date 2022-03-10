@@ -133,4 +133,118 @@ describe('articles', () => {
             expect(fs.existsSync(existingImagePath)).to.be(false);
         });
     });
+
+    describe('GET /api/articles', () => {
+        describe('with no Articles', () => {
+            it('returns an empty list when there are no Articles', async () => {
+                const response = await supertest(server)
+                    .get('/api/articles?page=1&size=5')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(false);
+                expect(response.body.articles).to.be.an(Array);
+                expect(response.body.articles).to.have.length(0);
+            });
+        });
+
+        describe('with 10 Categories', () => {
+            beforeEach(async () => {
+                await sequelize.query(`
+                    INSERT INTO
+                        articles(name, image, categoryId, createdAt, updatedAt)
+                    VALUES
+                        ('Article A', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article B', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article C', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article F', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article E', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article J', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article G', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article H', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article I', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                        ('Article D', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+                `);
+            });
+
+            it('returns first Article when page=1 and size=1', async () => {
+                const response = await supertest(server)
+                    .get('/api/articles?page=1&size=1')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(true);
+                expect(response.body.articles).to.be.an(Array);
+                expect(response.body.articles).to.have.length(1);
+                expect(response.body.articles[0]).to.eql({
+                    id: 1,
+                    name: 'Article A',
+                    image: null,
+                    categoryId: 1,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+            });
+
+            it('returns Articles 4-6 sorted by ascending name when page=2 and size=3', async () => {
+                const response = await supertest(server)
+                    .get('/api/articles?page=2&size=3')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(true);
+                expect(response.body.articles).to.be.an(Array);
+                expect(response.body.articles).to.have.length(3);
+                expect(response.body.articles[0]).to.eql({
+                    id: 10,
+                    name: 'Article D',
+                    image: null,
+                    categoryId: 1,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+                expect(response.body.articles[1]).to.eql({
+                    id: 5,
+                    name: 'Article E',
+                    image: null,
+                    categoryId: 1,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+                expect(response.body.articles[2]).to.eql({
+                    id: 4,
+                    name: 'Article F',
+                    image: null,
+                    categoryId: 1,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+            });
+
+            it('returns less Articles than specified by size, when the last page is requested and it has less than size items', async () => {
+                const response = await supertest(server)
+                    .get('/api/articles?page=4&size=3')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(false);
+                expect(response.body.articles).to.be.an(Array);
+                expect(response.body.articles).to.have.length(1);
+                expect(response.body.articles[0]).to.eql({
+                    id: 6,
+                    name: 'Article J',
+                    image: null,
+                    categoryId: 1,
+                    createdAt: '2000-01-01T00:00:00.000Z',
+                    updatedAt: '2000-01-01T00:00:00.000Z',
+                });
+            })
+
+            it('returns an empty list when page and size go beyond the range of Articles', async () => {
+                const response = await supertest(server)
+                    .get('/api/articles?page=3&size=5')
+                    .expect(200);
+
+                expect(response.body.hasMore).to.be(false);
+                expect(response.body.articles).to.be.an(Array);
+                expect(response.body.articles).to.have.length(0);
+            })
+        });
+    });
 });
