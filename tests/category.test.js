@@ -371,7 +371,7 @@ describe('categories', () => {
     });
 
     describe('DELETE /api/categories/:categoryId', () => {
-        it('deletes images for all Articles in the Category, then the Category image, followed by Category database entry', async () => {
+        it('deletes images for all Articles in the Category, then the Category image, followed by Category database entries and related Article/Field entries', async () => {
             fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article1'));
             fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article2'));
             fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article3'));
@@ -397,6 +397,17 @@ describe('categories', () => {
                     ('Article 3', '{"filename": "article3", "mimetype": "image/jpeg"}', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
                     ('Article 4', '{"filename": "article4", "mimetype": "image/jpeg"}', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
                     ('Article 5', '{"filename": "article5", "mimetype": "image/jpeg"}', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            await sequelize.query(`
+                INSERT INTO
+                    fields(name, categoryId, createdAt, updatedAt)
+                VALUES
+                    ('Field 1', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Field 2', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Field 3', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Field 4', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Field 5', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
             `);
 
             const response = await supertest(server)
@@ -436,6 +447,19 @@ describe('categories', () => {
             expect(articlesQueryResult[0][0].name).to.be('Article 4');
             expect(articlesQueryResult[0][1].id).to.be(5);
             expect(articlesQueryResult[0][1].name).to.be('Article 5');
+
+            const fieldsQueryResult = await sequelize.query(`
+                SELECT
+                    id, name
+                FROM
+                    fields
+            `);
+            expect(fieldsQueryResult).not.to.be(null);
+            expect(fieldsQueryResult[0]).have.length(2);
+            expect(fieldsQueryResult[0][0].id).to.be(4);
+            expect(fieldsQueryResult[0][0].name).to.be('Field 4');
+            expect(fieldsQueryResult[0][1].id).to.be(5);
+            expect(fieldsQueryResult[0][1].name).to.be('Field 5');
 
             expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article1'))).to.be(false);
             expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article2'))).to.be(false);
