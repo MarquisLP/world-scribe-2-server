@@ -477,4 +477,136 @@ describe('articles', () => {
             expect(actualName).to.be('New Article Name');
         });
     });
+
+    describe('DELETE /api/articles/:articleId', () => {
+        it('deletes Article image along with Article database entry and related FieldValue, Connection, and Snippet entries', async () => {
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article1image'));
+            fs.copyFileSync(path.join(__dirname, 'test_image.jpg'), path.join(TEST_WORLD_PATH, 'uploads', 'article2image'));
+
+            await sequelize.query(`
+                INSERT INTO
+                    articles(name, image, categoryId, createdAt, updatedAt)
+                VALUES
+                    ('Article to Delete', '{"filename": "article1image", "mimetype": "image/jpeg"}', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Other Article 1 - should not be deleted', '{"filename": "article2image", "mimetype": "image/jpeg"}', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Other Article 2 - should not be deleted', null, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            await sequelize.query(`
+                INSERT INTO
+                    fieldValues(value, fieldId, articleId, createdAt, updatedAt)
+                VALUES
+                    ('Article 1 - Field 1', 1, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Article 1 - Field 2', 2, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Article 1 - Field 3', 3, 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Article 2 - Field 1', 1, 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Article 2 - Field 2', 2, 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            await sequelize.query(`
+                INSERT INTO
+                    connectionDescriptions(content, createdAt, updatedAt)
+                VALUES
+                    ('Connection Description to Delete', '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Other Connection Description - should not be deleted', '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            await sequelize.query(`
+                INSERT INTO
+                    connections(mainArticleId, otherArticleId, otherArticleRole, connectionDescriptionId, createdAt, updatedAt)
+                VALUES
+                    (1, 2, 'Was connected to the Article being deleted', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    (2, 1, 'Soon-to-be-nonexistent Connection', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    (2, 3, 'Unaffected Connection 1', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    (3, 2, 'Unaffected Connection 2', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            await sequelize.query(`
+                INSERT INTO
+                    snippets(name, content, articleId, createdAt, updatedAt)
+                VALUES
+                    ('Snippet to Delete', 'This should be deleted', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Snippet to Delete 2', 'This should also be deleted', 1, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00'),
+                    ('Other Snippet - should not be deleted', 'This should NOT be deleted', 2, '2000-01-01 00:00:00.000 +00:00', '2000-01-01 00:00:00.000 +00:00');
+            `);
+
+            const response = await supertest(server)
+                .delete('/api/articles/1');
+
+            expect(response.body.name).to.equal('Article to Delete');
+            expect(response.body.image).to.be('{"filename": "article1image", "mimetype": "image/jpeg"}');
+            expect(response.body.categoryId).to.equal(1);
+            expect(response.body.createdAt).to.equal('2000-01-01 00:00:00.000 +00:00');
+            expect(response.body.updatedAt).to.equal('2000-01-01 00:00:00.000 +00:00');
+
+            const articlesQueryResult = await sequelize.query(`
+                SELECT
+                    id, name
+                FROM
+                    articles
+            `);
+            expect(articlesQueryResult).not.to.be(null);
+            expect(articlesQueryResult[0]).have.length(2);
+            expect(articlesQueryResult[0][0].id).to.be(2);
+            expect(articlesQueryResult[0][0].name).to.be('Other Article 1 - should not be deleted');
+            expect(articlesQueryResult[0][1].id).to.be(3);
+            expect(articlesQueryResult[0][1].name).to.be('Other Article 2 - should not be deleted');
+
+            const fieldValuesQueryResult = await sequelize.query(`
+                SELECT
+                    id, value
+                FROM
+                    fieldValues
+            `);
+            expect(fieldValuesQueryResult).not.to.be(null);
+            expect(fieldValuesQueryResult[0]).have.length(2);
+            expect(fieldValuesQueryResult[0][0].id).to.be(4);
+            expect(fieldValuesQueryResult[0][0].value).to.be('Article 2 - Field 1');
+            expect(fieldValuesQueryResult[0][1].id).to.be(5);
+            expect(fieldValuesQueryResult[0][1].value).to.be('Article 2 - Field 2');
+
+            const connectionDescriptionsQueryResult = await sequelize.query(`
+                SELECT
+                    id, content
+                FROM
+                    connectionDescriptions
+            `);
+            expect(connectionDescriptionsQueryResult[0]).not.to.be(null);
+            expect(connectionDescriptionsQueryResult[0]).to.have.length(1);
+            expect(connectionDescriptionsQueryResult[0][0].id).to.be(2);
+            expect(connectionDescriptionsQueryResult[0][0].content).to.be('Other Connection Description - should not be deleted');
+
+            const connectionsQueryResult = await sequelize.query(`
+                SELECT
+                    id, mainArticleId, otherArticleId, otherArticleRole
+                FROM
+                    connections
+            `);
+            expect(connectionsQueryResult[0]).not.to.be(null);
+            expect(connectionsQueryResult[0]).to.have.length(2);
+            expect(connectionsQueryResult[0][0].id).to.be(3);
+            expect(connectionsQueryResult[0][0].mainArticleId).to.be(2);
+            expect(connectionsQueryResult[0][0].otherArticleId).to.be(3);
+            expect(connectionsQueryResult[0][0].otherArticleRole).to.be('Unaffected Connection 1');
+            expect(connectionsQueryResult[0][1].id).to.be(4);
+            expect(connectionsQueryResult[0][1].mainArticleId).to.be(3);
+            expect(connectionsQueryResult[0][1].otherArticleId).to.be(2);
+            expect(connectionsQueryResult[0][1].otherArticleRole).to.be('Unaffected Connection 2');
+
+            const snippetsQueryResult = await sequelize.query(`
+                SELECT
+                    id, name, content
+                FROM
+                    snippets
+            `);
+            expect(snippetsQueryResult[0]).not.to.be(null);
+            expect(snippetsQueryResult[0]).to.have.length(1);
+            expect(snippetsQueryResult[0][0].id).to.be(3);
+            expect(snippetsQueryResult[0][0].name).to.be('Other Snippet - should not be deleted');
+            expect(snippetsQueryResult[0][0].content).to.be('This should NOT be deleted');
+
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article1image'))).to.be(false);
+            expect(fs.existsSync(path.join(TEST_WORLD_PATH, 'uploads', 'article2image'))).to.be(true);
+        });
+    });
 });
